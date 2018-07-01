@@ -4,15 +4,15 @@
 
 ## cybersponse Integration Options
 
-### Option 1
+### Host
 
 Describe option 1 here.
 
-### Option 2
+### Username
 
 Describe option 2 here.
 
-### Option 3
+### Password
 
 Describe option 3 here.
 

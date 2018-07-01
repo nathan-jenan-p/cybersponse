@@ -23,7 +23,7 @@ module.exports = {
      * @optional
      */
     description: "TODO cybersponse integration description",
-    entityTypes: [&#39;ipv4&#39;,&#39;hash&#39;,&#39;url&#39;,&#39;domain&#39;],
+    entityTypes: ['ipv4', 'hash', 'domain', 'url'],
     /**
      * An array of style files (css or less) that will be included for your integration. Any styles specified in
      * the below files can be used in your custom template.
@@ -100,36 +100,33 @@ module.exports = {
      * @optional
      */
     options: [
-        
         {
-            key: "",
-            name: "",
+            key: "host",
+            name: "Host",
+            description: "example description of this option",
+            default: "",
+            type: "text",
+            userCanEdit: false,
+            adminOnly: true
+        },
+        {
+            key: "username",
+            name: "Username",
+            description: "example description of this option",
+            default: "",
+            type: "text",
+            userCanEdit: false,
+            adminOnly: true
+        },
+        {
+            key: "password",
+            name: "Password",
             description: "example description of this option",
             default: "",
             type: "text",
             userCanEdit: false,
             adminOnly: true
         }
-       
-        {
-            key: "",
-            name: "",
-            description: "example description of this option",
-            default: "",
-            type: "text",
-            userCanEdit: false,
-            adminOnly: true
-        }
-       
-        {
-            key: "",
-            name: "",
-            description: "example description of this option",
-            default: "",
-            type: "text",
-            userCanEdit: false,
-            adminOnly: true
-        }
-       
+
     ]
 };

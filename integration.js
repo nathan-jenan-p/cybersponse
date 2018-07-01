@@ -1,15 +1,84 @@
 let async = require('async');
 let config = require('./config/config');
+let request = require('request');
 
 let Logger;
 let requestOptions = {};
+let requestWithDefaults;
 
-function getRequestOptions() {
-    return JSON.parse(JSON.stringify(requestOptions));
+function getToken(options, callback) {
+    requestWithDefaults({
+        method: 'POST',
+        uri: `${options.host}/auth/authenticate`,
+        body: {
+            credentials: {
+                loginid: options.username,
+                password: options.password
+            }
+        },
+        json: true
+    }, (err, resp, body) => {
+        if (err || resp.statusCode !== 200) {
+            Logger.error(`error getting token ${err || resp.statusCode} ${body}`);
+            callback(err || { statusCode: resp.statusCode, body: body }, null);
+            return;
+        }
+
+        callback(null, body.token);
+    });
+}
+
+function getResult(options, token, key, callback) {
+    requestWithDefaults({
+        method: 'POST',
+        uri: `${options.host}/api/query/alerts`,
+        headers: {
+            Authorization: `Bearer ${token}`
+        },
+        body: {
+            logic: "AND",
+            filters: [
+                {
+                    field: "source",
+                    operator: "eq",
+                    value: "10.10.10.10"
+                }
+            ]
+        },
+        json: true
+    }, (err, resp, body) => {
+        if (err || resp.statusCode !== 200) {
+            Logger.error(`error getting entities ${err || resp.statusCode} ${body}`);
+            callback(err || { statusCode: resp.statusCode, body: body }, null);
+            return;
+        }
+
+        callback(null, body);
+    });
 }
 
 function doLookup(entities, options, callback) {
-    callback(null, null);
+    Logger.trace('lookup options', { options: options });
+
+    let results = [];
+
+    getToken(options, (err, token) => {
+        if (err) {
+            callback(err, null);
+            return;
+        }
+
+        getResult(options, token, entities[0].value, (err, result) => {
+            if (err) {
+                callback(err, null);
+                return;
+            }
+
+            results = results.concat(result['hydra:member']);
+
+            callback(err, results);
+        });
+    });
 }
 
 function startup(logger) {
@@ -38,6 +107,8 @@ function startup(logger) {
     if (typeof config.request.rejectUnauthorized === 'boolean') {
         requestOptions.rejectUnauthorized = config.request.rejectUnauthorized;
     }
+
+    requestWithDefaults = request.defaults(requestOptions);
 }
 
 function validateStringOption(errors, options, optionName, errMessage) {
@@ -53,8 +124,9 @@ function validateStringOption(errors, options, optionName, errMessage) {
 function validateOptions(options, callback) {
     let errors = [];
 
-    // Example of how to validate a string option
-    validateOption(errors, options, 'exampleKey', 'You must provide an example option.');
+    validateOption(errors, options, 'host', 'You must provide a host.');
+    validateOption(errors, options, 'username', 'You must provide a username.');
+    validateOption(errors, options, 'password', 'You must provide a password.');
 
     callback(null, errors);
 }

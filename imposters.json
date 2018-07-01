@@ -1,0 +1,247 @@
+{
+    "imposters": [
+        {
+            "port": 5555,
+            "protocol": "https",
+            "name": "origin",
+            "stubs": [
+                {
+                    "predicates": [
+                        {
+                            "equals": {
+                                "path": "/auth/authenticate"
+                            }
+                        },
+                        {
+                            "deepEquals": {
+                                "body": {
+                                    "credentials": {
+                                        "loginid": "username",
+                                        "password": "password"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "responses": [
+                        {
+                            "is": {
+                                "body": {
+                                    "token": "12345"
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "predicates": [
+                        {
+                            "equals": {
+                                "path": "/auth/authenticate"
+                            }
+                        },
+                        {
+                            "deepEquals": {
+                                "body": {
+                                    "credentials": {
+                                        "loginid": "username",
+                                        "password": "password1"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "responses": [
+                        {
+                            "is": {
+                                "statusCode": 400
+                            }
+                        }
+                    ]
+                },
+                {
+                    "predicates": [
+                        {
+                            "equals": {
+                                "path": "/api/query/alerts"
+                            }
+                        },
+                        {
+                            "deepEquals": {
+                                "body": {
+                                    "logic": "AND",
+                                    "filters": [
+                                        {
+                                            "field": "source",
+                                            "operator": "eq",
+                                            "value": "10.10.10.10"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    "responses": [
+                        {
+                            "is": {
+                                "body": {
+                                    "@context": "/api/3/contexts/Alert",
+                                    "@id": "/api/query/alerts",
+                                    "@type": "hydra:PagedCollection",
+                                    "hydra:totalItems": 1,
+                                    "hydra:itemsPerPage": 30,
+                                    "hydra:firstPage": "/api/query/alerts",
+                                    "hydra:lastPage": "/api/query/alerts",
+                                    "hydra:member": [
+                                        {
+                                            "@id": "/api/3/alerts/26b85c5d-74fd-456a-9d67-4e1cd7fd3dc1",
+                                            "@type": "Alert",
+                                            "escalationreason": null,
+                                            "resolveddate": null,
+                                            "assigneddate": null,
+                                            "closurereason": null,
+                                            "name": "testing alerts",
+                                            "source": "10.10.10.10",
+                                            "sourceId": "1",
+                                            "dueBy": null,
+                                            "description": "<p>this is an alert to test</p>",
+                                            "rawdata": null,
+                                            "escalatedtoincident": null,
+                                            "type": {
+                                                "@id": "/api/3/picklists/844c0b64-04fa-494f-9795-7c8406e59f69",
+                                                "@type": "Picklist",
+                                                "itemValue": "Beaconing",
+                                                "orderIndex": 0,
+                                                "color": null,
+                                                "icon": null,
+                                                "listName": "/api/3/picklist_names/a7087b9c-5660-495f-a8ac-c3b198ddb8c2",
+                                                "id": 4484
+                                            },
+                                            "severity": {
+                                                "@id": "/api/3/picklists/58d0753f-f7e4-403b-953c-b0f521eab759",
+                                                "@type": "Picklist",
+                                                "itemValue": "Low",
+                                                "orderIndex": 1,
+                                                "color": "#28B35C",
+                                                "icon": null,
+                                                "listName": "/api/3/picklist_names/4e80cba3-032f-48b4-ac03-17e3ec247aac",
+                                                "id": 89
+                                            },
+                                            "status": {
+                                                "@id": "/api/3/picklists/7de816ff-7140-4ee5-bd05-93ce22002146",
+                                                "@type": "Picklist",
+                                                "itemValue": "Open",
+                                                "orderIndex": 1,
+                                                "color": null,
+                                                "icon": null,
+                                                "listName": "/api/3/picklist_names/33e964a9-d607-49f2-813c-7ce46141815a",
+                                                "id": 54
+                                            },
+                                            "assignedTo": {
+                                                "@id": "/api/3/people/503a7fce-b163-49f3-b988-7ae5abac1349",
+                                                "@type": "Person",
+                                                "firstname": "Joseph",
+                                                "lastname": "Miller",
+                                                "title": null,
+                                                "department": null,
+                                                "email": "joem@polarity.io",
+                                                "description": null,
+                                                "phoneFax": null,
+                                                "phoneHome": null,
+                                                "phoneMobile": null,
+                                                "phoneWork": "+12696215088",
+                                                "rawData": null,
+                                                "companyId": null,
+                                                "type": null,
+                                                "userId": "ae81383e-8c52-4ed3-b964-94292e9f14e5",
+                                                "userType": null,
+                                                "avatar": null,
+                                                "createUser": "/api/3/people/3451141c-bac6-467c-8d72-85e0fab569ce",
+                                                "createDate": 1529945956,
+                                                "modifyUser": "/api/3/people/3451141c-bac6-467c-8d72-85e0fab569ce",
+                                                "modifyDate": 1529945956,
+                                                "id": 323,
+                                                "@settings": "/api/3/user_settings/503a7fce-b163-49f3-b988-7ae5abac1349"
+                                            },
+                                            "systemAssignedQueue": null,
+                                            "createUser": {
+                                                "@id": "/api/3/people/503a7fce-b163-49f3-b988-7ae5abac1349",
+                                                "@type": "Person",
+                                                "firstname": "Joseph",
+                                                "lastname": "Miller",
+                                                "title": null,
+                                                "department": null,
+                                                "email": "joem@polarity.io",
+                                                "description": null,
+                                                "phoneFax": null,
+                                                "phoneHome": null,
+                                                "phoneMobile": null,
+                                                "phoneWork": "+12696215088",
+                                                "rawData": null,
+                                                "companyId": null,
+                                                "type": null,
+                                                "userId": "ae81383e-8c52-4ed3-b964-94292e9f14e5",
+                                                "userType": null,
+                                                "avatar": null,
+                                                "createUser": "/api/3/people/3451141c-bac6-467c-8d72-85e0fab569ce",
+                                                "createDate": 1529945956,
+                                                "modifyUser": "/api/3/people/3451141c-bac6-467c-8d72-85e0fab569ce",
+                                                "modifyDate": 1529945956,
+                                                "id": 323,
+                                                "@settings": "/api/3/user_settings/503a7fce-b163-49f3-b988-7ae5abac1349"
+                                            },
+                                            "createDate": 1530276300,
+                                            "modifyUser": {
+                                                "@id": "/api/3/people/503a7fce-b163-49f3-b988-7ae5abac1349",
+                                                "@type": "Person",
+                                                "firstname": "Joseph",
+                                                "lastname": "Miller",
+                                                "title": null,
+                                                "department": null,
+                                                "email": "joem@polarity.io",
+                                                "description": null,
+                                                "phoneFax": null,
+                                                "phoneHome": null,
+                                                "phoneMobile": null,
+                                                "phoneWork": "+12696215088",
+                                                "rawData": null,
+                                                "companyId": null,
+                                                "type": null,
+                                                "userId": "ae81383e-8c52-4ed3-b964-94292e9f14e5",
+                                                "userType": null,
+                                                "avatar": null,
+                                                "createUser": "/api/3/people/3451141c-bac6-467c-8d72-85e0fab569ce",
+                                                "createDate": 1529945956,
+                                                "modifyUser": "/api/3/people/3451141c-bac6-467c-8d72-85e0fab569ce",
+                                                "modifyDate": 1529945956,
+                                                "id": 323,
+                                                "@settings": "/api/3/user_settings/503a7fce-b163-49f3-b988-7ae5abac1349"
+                                            },
+                                            "modifyDate": 1530276300,
+                                            "id": 328
+                                        }
+                                    ],
+                                    "hydra:search": {
+                                        "@type": "hydra:IriTemplate",
+                                        "hydra:template": "/api/query/alerts{?}",
+                                        "hydra:variableRepresentation": "BasicRepresentation",
+                                        "hydra:mapping": []
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "responses": [
+                        {
+                            "is": {
+                                "statusCode": 500
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
