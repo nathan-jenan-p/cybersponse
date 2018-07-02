@@ -41,17 +41,19 @@ function getResult(options, token, key, callback) {
                 {
                     field: "source",
                     operator: "eq",
-                    value: "10.10.10.10"
+                    value: key
                 }
             ]
         },
         json: true
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
-            Logger.error(`error getting entities ${err || resp.statusCode} ${body}`);
+            Logger.error(`error getting entities`, { err: err, statusCode: resp.statusCode, body: body });
             callback(err || { statusCode: resp.statusCode, body: body }, null);
             return;
         }
+
+        Logger.trace('lookup', { result: body, value: key });
 
         callback(null, body);
     });
@@ -74,7 +76,22 @@ function doLookup(entities, options, callback) {
                 return;
             }
 
-            results = results.concat(result['hydra:member']);
+            if (result['hydra:member'].length === 0) {
+                results.push({
+                    entity: entities[0],
+                    data: null
+                });
+                callback(null, results);
+                return;
+            }
+
+            results.push({
+                entity: entities[0],
+                data: {
+                    summary: ['test'],
+                    details: result['hydra:member']
+                }
+            });
 
             callback(err, results);
         });
@@ -124,9 +141,9 @@ function validateStringOption(errors, options, optionName, errMessage) {
 function validateOptions(options, callback) {
     let errors = [];
 
-    validateOption(errors, options, 'host', 'You must provide a host.');
-    validateOption(errors, options, 'username', 'You must provide a username.');
-    validateOption(errors, options, 'password', 'You must provide a password.');
+    validateStringOption(errors, options, 'host', 'You must provide a host.');
+    validateStringOption(errors, options, 'username', 'You must provide a username.');
+    validateStringOption(errors, options, 'password', 'You must provide a password.');
 
     callback(null, errors);
 }

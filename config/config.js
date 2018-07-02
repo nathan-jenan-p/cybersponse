@@ -5,7 +5,7 @@ module.exports = {
      * @type String
      * @required
      */
-    name: "cybersponse",
+    name: "CyberSponse",
     /**
      * The acronym that appears in the notification window when information from this integration
      * is displayed.  Note that the acronym is included as part of each "tag" in the summary information
@@ -90,7 +90,7 @@ module.exports = {
         // the directory you specify is writable by the `polarityd:polarityd` user and group.
 
         //directoryPath: '/var/log/polarity-integrations',
-        level: 'info',  //trace, debug, info, warn, error, fatal
+        level: 'trace',  //trace, debug, info, warn, error, fatal
     },
     /**
      * Options that are displayed to the user/admin in the Polarity integration user-interface.  Should be structured
