@@ -10,7 +10,26 @@
         {{#each result.items as |item|}}
         <div>
             <span class="p-key">{{item.key}}</span>
-            <span class="p-value">{{item.value}}</span>
+
+            <!-- sometimes we get html back so don't escape it -->
+            <span class="p-value">{{{item.value}}}</span>
+        </div>
+        {{/each}}
+
+        <h1 class="p-title">
+            <i class="fa fa-fw fa-info"></i> Actions
+        </h1>
+        {{#each details.actions as |action|}}
+        <div>
+            <span>
+                <button {{action "invokePlaybook" action result.alert}} class="btn btn-default btn-xs">
+                    {{action.name}}
+                </button>
+                {{#if action.success}}
+                <span class="success">Success!</span>
+                {{/if}}
+                <br />
+            </span>
         </div>
         {{/each}}
     </div>

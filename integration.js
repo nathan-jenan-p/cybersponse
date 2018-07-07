@@ -6,6 +6,8 @@ let Logger;
 let requestOptions = {};
 let requestWithDefaults;
 
+const HYDRA_MEMBER = 'hydra:member';
+
 function getToken(options, callback) {
     requestWithDefaults({
         method: 'POST',
@@ -20,7 +22,7 @@ function getToken(options, callback) {
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
             Logger.error(`error getting token ${err || resp.statusCode} ${body}`);
-            callback(err || { statusCode: resp.statusCode, body: body }, null);
+            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
             return;
         }
 
@@ -28,28 +30,67 @@ function getToken(options, callback) {
     });
 }
 
+function getAlertActions(token, options, callback) {
+    requestWithDefaults({
+        uri: `${options.host}/api/workflows/actions`,
+        qs: {
+            '$relationships': true,
+            'isActive': true,
+            'type': 'alerts'
+        },
+        headers: {
+            Authorization: `Bearer ${token}`
+        },
+        json: true
+    }, (err, resp, body) => {
+        if (err || resp.statusCode !== 200) {
+            Logger.error(`error getting alert actions ${err || resp.statusCode} ${body}`);
+            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
+            return;
+        }
+
+        let actions = body[HYDRA_MEMBER].map(action => {
+            let triggerStepId = action.triggerStep;
+            let triggerStep = action.steps
+                .filter(step => step['@id'] === triggerStepId)
+                .pop(); // should be only 1 match
+
+            return {
+                invoke: `${options.host}/api/triggers/1/action/${triggerStep.arguments.route}`,
+                name: action.name
+            };
+        });
+
+        callback(null, actions);
+    });
+}
+
 function getResult(options, token, key, callback) {
+    let body = {
+        logic: "AND",
+        filters: [
+            {
+                field: "source",
+                operator: "eq",
+                value: key.toLowerCase()
+            }
+        ]
+    };
+
+    Logger.trace('request body', body);
+
     requestWithDefaults({
         method: 'POST',
         uri: `${options.host}/api/query/alerts`,
         headers: {
             Authorization: `Bearer ${token}`
         },
-        body: {
-            logic: "AND",
-            filters: [
-                {
-                    field: "source",
-                    operator: "eq",
-                    value: key
-                }
-            ]
-        },
+        body: body,
         json: true
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
             Logger.error(`error getting entities`, { err: err, statusCode: resp.statusCode, body: body });
-            callback(err || { statusCode: resp.statusCode, body: body }, null);
+            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
             return;
         }
 
@@ -70,30 +111,43 @@ function doLookup(entities, options, callback) {
             return;
         }
 
-        getResult(options, token, entities[0].value, (err, result) => {
+        getAlertActions(token, options, (err, actions) => {
             if (err) {
                 callback(err, null);
                 return;
             }
 
-            if (result['hydra:member'].length === 0) {
-                results.push({
-                    entity: entities[0],
-                    data: null
+            async.each(entities, (entity, done) => {
+                getResult(options, token, entity.value, (err, result) => {
+                    if (err) {
+                        done(err);
+                        return;
+                    }
+
+                    if (result[HYDRA_MEMBER].length === 0) {
+                        results.push({
+                            entity: entity,
+                            data: null
+                        });
+                        done();
+                        return;
+                    }
+
+                    results.push({
+                        entity: entity,
+                        data: {
+                            summary: ['tag1', 'tag2', 'tag3', 'tag4'],
+                            details: {
+                                actions: actions,
+                                result: result[HYDRA_MEMBER]
+                            }
+                        }
+                    });
+                    done();
                 });
-                callback(null, results);
-                return;
-            }
-
-            results.push({
-                entity: entities[0],
-                data: {
-                    summary: ['test'],
-                    details: result['hydra:member']
-                }
+            }, err => {
+                callback(err, results);
             });
-
-            callback(err, results);
         });
     });
 }

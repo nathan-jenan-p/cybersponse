@@ -2,7 +2,7 @@ polarity.export = PolarityComponent.extend({
     details: Ember.computed.alias('block.data.details'),
     displayResult: Ember.computed('block.data.details', function () {
         let results = [];
-        let details = this.get('block.data.details');
+        let details = this.get('block.data.details').result;
 
         details.forEach(function (detail) {
             let items = [];
@@ -19,10 +19,18 @@ polarity.export = PolarityComponent.extend({
 
             results.push({
                 name: detail.name,
-                items: items
+                items: items,
+                alert: detail
             });
         });
 
         return results;
-    })
+    }),
+    actions: {
+        invokePlaybook: function (action, alert) {
+            console.error(action);
+            console.error(alert);
+            action.success = true;
+        }
+    }
 });

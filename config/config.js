@@ -50,14 +50,6 @@ module.exports = {
             file: "./templates/cybersponse-block.hbs"
         }
     },
-    summary: {
-        component: {
-            file: './components/cybersponse-summary.js'
-        },
-        template: {
-            file: './templates/cybersponse-summary.hbs'
-        }
-    },
     request: {
         // Provide the path to your certFile. Leave an empty string to ignore this option.
         // Relative paths are relative to the STAXX integration's root directory
@@ -79,7 +71,7 @@ module.exports = {
          * to STAXX servers without valid SSL certificates.  Please note that we do NOT recommending setting this
          * to false in a production environment.
          */
-        rejectUnauthorized: true
+        rejectUnauthorized: false
     },
     logging: {
         // directory is relative to the this integrations directory
