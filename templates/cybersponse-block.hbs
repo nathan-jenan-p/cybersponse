@@ -2,7 +2,7 @@
     {{#each displayResult as |result|}}
     <div>
         <div>
-            <a class="p-link" href="{{link}}">View in CyberSponse</a>
+            <a class="p-link" href="https://polarity.cybersponse.com/modules/alerts/{{displayResult.id}}">View in CyberSponse</a>
         </div>
         <h1 class="p-title">
             <i class="fa fa-fw fa-info"></i> {{result.name}}
@@ -28,10 +28,9 @@
                 {{#if action.success}}
                 <span class="success">Success!</span>
                 {{/if}}
-                <br />
             </span>
         </div>
-        {{/each}}
+        <br /> {{/each}}
     </div>
     {{/each}}
 </div>

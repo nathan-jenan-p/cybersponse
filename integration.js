@@ -133,21 +133,51 @@ function doLookup(entities, options, callback) {
                         return;
                     }
 
-                    results.push({
-                        entity: entity,
-                        data: {
-                            summary: ['tag1', 'tag2', 'tag3', 'tag4'],
-                            details: {
-                                actions: actions,
-                                result: result[HYDRA_MEMBER]
+                    result[HYDRA_MEMBER].forEach(result => {
+                        results.push({
+                            entity: entity,
+                            data: {
+                                summary: [result.severity.itemValue, result.status.itemValue, result.type.itemValue],
+                                details: {
+                                    actions: actions,
+                                    result: result
+                                }
                             }
-                        }
+                        });
                     });
                     done();
                 });
             }, err => {
                 callback(err, results);
             });
+        });
+    });
+}
+
+function onMessage(payload, options, callback) {
+    getToken(options, (err, token) => {
+        if (err) {
+            callback({ error: err });
+            return;
+        }
+
+        requestWithDefaults({
+            method: 'POST',
+            uri: payload.action.invoke,
+            body: {
+                records: [payload.alert],
+            },
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+            json: true,
+        }, (err, resp) => {
+            if (err || resp.statusCode !== 200) {
+                callback({ error: err, statusCode: resp.statusCode });
+                return;
+            }
+
+            callback(null, {});
         });
     });
 }
@@ -204,6 +234,7 @@ function validateOptions(options, callback) {
 
 module.exports = {
     doLookup: doLookup,
+    onMessage: onMessage,
     startup: startup,
     validateOptions: validateOptions
 };
