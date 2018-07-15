@@ -2,7 +2,7 @@
     {{#each displayResult as |result|}}
     <div>
         <div>
-            <a class="p-link" href="https://polarity.cybersponse.com/modules/alerts/{{displayResult.id}}">View in CyberSponse</a>
+            <a class="p-link" href="{{host}}/modules/alerts/{{displayResult.id}}">View in CyberSponse</a>
         </div>
         <h1 class="p-title">
             <i class="fa fa-fw fa-info"></i> {{result.name}}
@@ -22,11 +22,14 @@
         {{#each details.actions as |action|}}
         <div>
             <span>
-                <button {{action "invokePlaybook" action result.alert}} class="btn btn-default btn-xs">
+                <button {{action "invokePlaybook" action result.alert}} class="btn btn-primary">
                     {{action.name}}
                 </button>
                 {{#if action.success}}
                 <span class="success">Success!</span>
+                {{/if}}
+                {{#if action.error}}
+                <span class="error">Error while processing playbook, check logs</span>
                 {{/if}}
             </span>
         </div>

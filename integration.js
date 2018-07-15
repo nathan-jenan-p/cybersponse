@@ -81,7 +81,7 @@ function getResult(options, token, key, callback) {
 
     requestWithDefaults({
         method: 'POST',
-        uri: `${options.host}/api/query/alerts`,
+        uri: `${options.host}/api/query/incidents`,
         headers: {
             Authorization: `Bearer ${token}`
         },
@@ -137,10 +137,11 @@ function doLookup(entities, options, callback) {
                         results.push({
                             entity: entity,
                             data: {
-                                summary: [result.severity.itemValue, result.status.itemValue, result.type.itemValue],
+                                summary: [result.severity.itemValue, result.status.itemValue, result.phase.itemValue, result.category.itemValue],
                                 details: {
                                     actions: actions,
-                                    result: result
+                                    result: result,
+                                    host: options.host
                                 }
                             }
                         });
