@@ -100,6 +100,25 @@ function getResult(options, token, key, callback) {
     });
 }
 
+function getNumberOfAlerts(options, token, id, callback) {
+    requestWithDefaults({
+        method: 'GET',
+        uri: `${options.host}${id}/alerts`,
+        headers: {
+            Authorization: `Bearer ${token}`
+        },
+        json: true
+    }, (err, resp, body) => {
+        if (err || resp.statusCode !== 200) {
+            Logger.error(`error getting number of alerts`, { err: err, statusCode: resp.statusCode, body: body });
+            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
+            return;
+        }
+
+        callback(null, body[HYDRA_MEMBER].length);
+    });
+}
+
 function doLookup(entities, options, callback) {
     Logger.trace('lookup options', { options: options });
 
@@ -133,20 +152,36 @@ function doLookup(entities, options, callback) {
                         return;
                     }
 
-                    result[HYDRA_MEMBER].forEach(result => {
-                        results.push({
-                            entity: entity,
-                            data: {
-                                summary: [result.severity.itemValue, result.status.itemValue, result.phase.itemValue, result.category.itemValue],
-                                details: {
-                                    actions: actions,
-                                    result: result,
-                                    host: options.host
-                                }
+                    async.forEach(result[HYDRA_MEMBER], (result, done) => {
+                        getNumberOfAlerts(options, token, result['@id'], (err, numberOfAlerts) => {
+                            if (err) {
+                                done(err);
+                                return;
                             }
+
+                            results.push({
+                                entity: entity,
+                                data: {
+                                    summary: [
+                                        result.severity.itemValue,
+                                        result.status.itemValue,
+                                        result.phase.itemValue,
+                                        result.category.itemValue,
+                                        `Alerts: ${numberOfAlerts}`
+                                    ],
+                                    details: {
+                                        actions: actions,
+                                        result: result,
+                                        host: options.host,
+                                        numberOfAlerts: numberOfAlerts
+                                    }
+                                }
+                            });
+                            done();
                         });
+                    }, err => {
+                        done(err);
                     });
-                    done();
                 });
             }, err => {
                 callback(err, results);
