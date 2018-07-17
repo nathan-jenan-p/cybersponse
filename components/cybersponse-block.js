@@ -9,17 +9,16 @@ polarity.export = PolarityComponent.extend({
     actionStatus: {},
     displayResult: Ember.computed('block.data.details', function () {
         try {
-            let results = [];
             let details = this.get('block.data.details');
             let detail = details.result;
             let items = [];
             addItem(items, 'Description', detail.description, true);
             addItem(items, 'Impact Assessments', detail.impactassessments, true);
-            addItem(items, 'Phase', detail.phase.itemValue, true);
-            addItem(items, 'Category', detail.category.itemValue, true);
-            addItem(items, 'Severity', detail.severity.itemValue, true);
-            addItem(items, 'Status', detail.status.itemValue, true);
-            addItem(items, 'Number of Alerts', details.numberOfAlerts, true);
+            addItem(items, 'Phase', detail.phase.itemValue);
+            addItem(items, 'Category', detail.category.itemValue);
+            addItem(items, 'Severity', detail.severity.itemValue);
+            addItem(items, 'Status', detail.status.itemValue);
+            addItem(items, 'Number of Alerts', details.numberOfAlerts);
             if (detail.incidentLead && detail.incidentLead.firstname) {
                 items.push({ key: 'Incident Lead', value: detail.incidentLead.firstname + ' ' + detail.incidentLead.lastname });
             }
@@ -28,15 +27,13 @@ polarity.export = PolarityComponent.extend({
                 items.push({ key: 'Modified By', value: detail.modifyUser.firstname + ' ' + detail.modifyUser.lastname });
             }
 
-            let match = /^.+\/alerts\/(.+)/.exec(detail['@id'][1]);
-            results.push({
+            let matchs = /^.+\/incidents\/(.+)/.exec(detail['@id']);
+            return {
                 name: detail.name,
                 items: items,
                 alert: detail,
-                id: match
-            });
-
-            return results;
+                id: matchs[1]
+            };
         } catch (e) {
             console.error(e);
             throw e;

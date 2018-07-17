@@ -1,13 +1,12 @@
 <div>
-    {{#each displayResult as |result|}}
     <div>
         <div>
-            <a class="p-link" href="{{host}}/modules/alerts/{{displayResult.id}}">View in CyberSponse</a>
+            <a class="p-link" href="{{host}}/modules/incidents/{{displayResult.id}}">View in CyberSponse</a>
         </div>
         <h1 class="p-title">
-            <i class="fa fa-fw fa-info"></i> {{result.name}}
+            <i class="fa fa-fw fa-info"></i> {{displayResult.name}}
         </h1>
-        {{#each result.items as |item|}}
+        {{#each displayResult.items as |item|}}
         <div>
             <span class="p-key">{{item.key}}</span>
 
@@ -22,18 +21,16 @@
         {{#each details.actions as |action|}}
         <div>
             <span>
-                <button {{action "invokePlaybook" action result.alert}} class="btn btn-primary">
+                <button {{action "invokePlaybook" action displayResult.alert}} class="btn btn-primary">
                     {{action.name}}
                 </button>
                 {{#if action.success}}
                 <span class="success">Success!</span>
-                {{/if}}
-                {{#if action.error}}
+                {{/if}} {{#if action.error}}
                 <span class="error">Error while processing playbook, check logs</span>
                 {{/if}}
             </span>
         </div>
         <br /> {{/each}}
     </div>
-    {{/each}}
 </div>
