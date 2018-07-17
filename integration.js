@@ -67,12 +67,17 @@ function getAlertActions(token, options, callback) {
 
 function getResult(options, token, key, callback) {
     let body = {
-        logic: "AND",
+        logic: "OR",
         filters: [
             {
                 field: "source",
                 operator: "eq",
                 value: key.toLowerCase()
+            },
+            {
+                field: "source",
+                operator: "eq",
+                value: key.toUpperCase()
             }
         ]
     };

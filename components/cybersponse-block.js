@@ -1,3 +1,9 @@
+function addItem(items, key, value, hide) {
+    if (value) {
+        items.push({ key: key, value: value, hide: hide });
+    }
+}
+
 polarity.export = PolarityComponent.extend({
     details: Ember.computed.alias('block.data.details'),
     actionStatus: {},
@@ -7,13 +13,13 @@ polarity.export = PolarityComponent.extend({
             let details = this.get('block.data.details');
             let detail = details.result;
             let items = [];
-            items.push({ key: 'Description', value: detail.description, hide: true });
-            items.push({ key: 'Impact Assessments', value: detail.impactassessments, hide: true });
-            items.push({ key: 'Phase', value: detail.phase.itemValue });
-            items.push({ key: 'Category', value: detail.category.itemValue });
-            items.push({ key: 'Severity', value: detail.severity.itemValue });
-            items.push({ key: 'Status', value: detail.status.itemValue });
-            items.push({ key: 'Number of Alerts', value: details.numberOfAlerts });
+            addItem(items, 'Description', detail.description, true);
+            addItem(items, 'Impact Assessments', detail.impactassessments, true);
+            addItem(items, 'Phase', detail.phase.itemValue, true);
+            addItem(items, 'Category', detail.category.itemValue, true);
+            addItem(items, 'Severity', detail.severity.itemValue, true);
+            addItem(items, 'Status', detail.status.itemValue, true);
+            addItem(items, 'Number of Alerts', details.numberOfAlerts, true);
             if (detail.incidentLead && detail.incidentLead.firstname) {
                 items.push({ key: 'Incident Lead', value: detail.incidentLead.firstname + ' ' + detail.incidentLead.lastname });
             }
