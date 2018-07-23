@@ -6,15 +6,15 @@
 
 ### Host
 
-Describe option 1 here.
+The hostname of the CyberSpace instance to use.
 
 ### Username
 
-Describe option 2 here.
+The username to use.
 
 ### Password
 
-Describe option 3 here.
+The password to use.
 
 ## Polarity
 

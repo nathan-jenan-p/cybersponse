@@ -65,22 +65,28 @@ function getAlertActions(token, options, callback) {
     });
 }
 
-function getResult(options, token, key, callback) {
+function multiCasedBody(field, key) {
     let body = {
         logic: "OR",
         filters: [
             {
-                field: "source",
+                field: field,
                 operator: "eq",
                 value: key.toLowerCase()
             },
             {
-                field: "source",
+                field: field,
                 operator: "eq",
                 value: key.toUpperCase()
             }
         ]
     };
+
+    return body
+}
+
+function getResult(options, token, key, callback) {
+    let body = multiCasedBody('source', key);
 
     Logger.trace('request body', body);
 
@@ -108,7 +114,7 @@ function getResult(options, token, key, callback) {
 function getNumberOfAlerts(options, token, id, callback) {
     requestWithDefaults({
         method: 'GET',
-        uri: `${options.host}${id}/alerts`,
+        uri: `${options.host}${id}/alerts?&__selectFields=id`,
         headers: {
             Authorization: `Bearer ${token}`
         },
@@ -124,72 +130,146 @@ function getNumberOfAlerts(options, token, id, callback) {
     });
 }
 
-function doLookup(entities, options, callback) {
+function getIndicators(options, token, key, callback) {
+    let body = multiCasedBody('value', key);
+
+    requestWithDefaults({
+        method: 'POST',
+        uri: `${options.host}/api/query/indicators`,
+        headers: {
+            Authorization: `Bearer ${token}`
+        },
+        body: body,
+        json: true
+    }, (err, resp, body) => {
+        if (err || resp.statusCode !== 200) {
+            Logger.error(`error getting indicators`, { err: err, statusCode: resp.statusCode, body: body });
+            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
+            return;
+        }
+
+        let indicators = [];
+
+        async.each(body[HYDRA_MEMBER], (indicator, done) => {
+            let sightings = {};
+
+            async.each(['alerts', 'assets', 'incidents', 'emails', 'events'], (type, done) => {
+                let id = indicator['@id'];
+
+                requestWithDefaults({
+                    method: 'GET',
+                    uri: `${options.host}${id}/${type}?&__selectFields=id`,
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: body,
+                    json: true
+                }, (err, resp, body) => {
+                    if (err || resp.statusCode !== 200) {
+                        Logger.error(`error getting ${type}`, { err: err, statusCode: resp.statusCode, body: body });
+                        done({ error: err, statusCode: resp.statusCode, body: body });
+                        return;
+                    }
+
+                    sightings[type] = body[HYDRA_MEMBER].length;
+                    done();
+                });
+            }, err => {
+                if (err) {
+                    done(err);
+                }
+
+                indicators.push({
+                    indicator: indicator,
+                    sightings: sightings
+                });
+                done();
+            });
+        }, err => {
+            callback(err, indicators);
+        });
+
+    });
+}
+
+function doLookup(entities, options, lookupCallback) {
     Logger.trace('lookup options', { options: options });
 
     let results = [];
 
     getToken(options, (err, token) => {
         if (err) {
-            callback(err, null);
+            lookupCallback(err, null);
             return;
         }
 
         getAlertActions(token, options, (err, actions) => {
             if (err) {
-                callback(err, null);
+                lookupCallback(err, null);
                 return;
             }
 
-            async.each(entities, (entity, done) => {
-                getResult(options, token, entity.value, (err, result) => {
+            async.each(entities, (entity, doneEntities) => {
+                getIndicators(options, token, entity.value, (err, indicators) => {
                     if (err) {
-                        done(err);
+                        lookupCallback(err);
                         return;
                     }
 
-                    if (result[HYDRA_MEMBER].length === 0) {
-                        results.push({
-                            entity: entity,
-                            data: null
-                        });
-                        done();
-                        return;
-                    }
+                    getResult(options, token, entity.value, (err, result) => {
+                        if (err) {
+                            lookupCallback(err);
+                            return;
+                        }
 
-                    async.forEach(result[HYDRA_MEMBER], (result, done) => {
-                        getNumberOfAlerts(options, token, result['@id'], (err, numberOfAlerts) => {
-                            if (err) {
-                                done(err);
-                                return;
-                            }
-
+                        if (result[HYDRA_MEMBER].length === 0) {
                             results.push({
                                 entity: entity,
-                                data: {
-                                    summary: [
-                                        result.severity.itemValue,
-                                        result.status.itemValue,
-                                        result.phase.itemValue,
-                                        result.category.itemValue,
-                                        `Alerts: ${numberOfAlerts}`
-                                    ],
-                                    details: {
-                                        actions: actions,
-                                        result: result,
-                                        host: options.host,
-                                        numberOfAlerts: numberOfAlerts
-                                    }
-                                }
+                                data: null
                             });
-                            done();
+                            doneEntities();
+                            return;
+                        }
+
+                        async.each(result[HYDRA_MEMBER], (result, doneResults) => {
+                            getNumberOfAlerts(options, token, result['@id'], (err, numberOfAlerts) => {
+                                if (err) {
+                                    lookupCallback(err);
+                                    return;
+                                }
+
+                                results.push({
+                                    entity: entity,
+                                    data: {
+                                        summary: [
+                                            result.severity.itemValue,
+                                            result.status.itemValue,
+                                            result.phase.itemValue,
+                                            result.category.itemValue,
+                                            `Alerts: ${numberOfAlerts}`
+                                        ],
+                                        details: {
+                                            actions: actions,
+                                            result: result,
+                                            host: options.host,
+                                            numberOfAlerts: numberOfAlerts,
+                                            indicators: indicators
+                                        }
+                                    }
+                                });
+                                doneResults();
+                            });
+                        }, err => {
+                            if (err) {
+                                doneEntities(err);
+                                Logger.error('circular error?', err);
+                            }
+                            doneEntities();
                         });
-                    }, err => {
-                        done(err);
                     });
                 });
             }, err => {
-                callback(err, results);
+                lookupCallback(err, results);
             });
         });
     });

@@ -6,7 +6,41 @@ function addItem(items, key, value, hide) {
 
 polarity.export = PolarityComponent.extend({
     details: Ember.computed.alias('block.data.details'),
+    hasIndicators: Ember.computed('block.data.details', function () {
+        return this.get('block.data.details').indicators.length > 0;
+    }),
     actionStatus: {},
+    indicators: Ember.computed('block.data.details', function () {
+        try {
+            let details = this.get('block.data.details');
+            let detail = details.indicators;
+            let indicators = detail.map(indicator => {
+                let items = [];
+                let sightings = [];
+                addItem(items, 'Source', indicator.indicator.source);
+                addItem(items, 'Description', indicator.indicator.description);
+                if (indicator.indicator.reputation) addItem(items, 'Reputation', indicator.indicator.reputation.itemValue);
+
+                // Sightings
+                addItem(sightings, 'Alerts', indicator.sightings['alerts']);
+                addItem(sightings, 'Assets', indicator.sightings['assets']);
+                addItem(sightings, 'Incidents', indicator.sightings['incidents']);
+                addItem(sightings, 'Emails', indicator.sightings['emails']);
+                addItem(sightings, 'Events', indicator.sightings['events']);
+
+                return {
+                    title: indicator.indicator.typeofindicator.itemValue,
+                    items: items,
+                    sightings: sightings
+                };
+            });
+
+            return indicators;
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    }),
     displayResult: Ember.computed('block.data.details', function () {
         try {
             let details = this.get('block.data.details');
