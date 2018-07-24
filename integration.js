@@ -22,7 +22,7 @@ function getToken(options, callback) {
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
             Logger.error(`error getting token ${err || resp.statusCode} ${body}`);
-            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
+            callback({ error: err, statusCode: (resp ? resp.statusCode : 'unknown'), body: body }, null);
             return;
         }
 

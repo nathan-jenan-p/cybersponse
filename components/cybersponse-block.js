@@ -28,8 +28,11 @@ polarity.export = PolarityComponent.extend({
                 addItem(sightings, 'Emails', indicator.sightings['emails']);
                 addItem(sightings, 'Events', indicator.sightings['events']);
 
+                let matches = /^.+\/indicators\/(.+)/.exec(indicator.indicator['@id']);
+
                 return {
                     title: indicator.indicator.typeofindicator.itemValue,
+                    id: matches[1],
                     items: items,
                     sightings: sightings
                 };
@@ -51,7 +54,7 @@ polarity.export = PolarityComponent.extend({
             addItem(items, 'Phase', detail.phase.itemValue);
             addItem(items, 'Category', detail.category.itemValue);
             addItem(items, 'Severity', detail.severity.itemValue);
-            addItem(items, 'Status', detail.status.itemValue);
+            addItem(items, 'Indicator Status', detail.status.itemValue);
             addItem(items, 'Number of Alerts', details.numberOfAlerts);
             if (detail.incidentLead && detail.incidentLead.firstname) {
                 items.push({ key: 'Incident Lead', value: detail.incidentLead.firstname + ' ' + detail.incidentLead.lastname });
