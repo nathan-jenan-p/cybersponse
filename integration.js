@@ -1,15 +1,21 @@
 let async = require('async');
 let config = require('./config/config');
 let request = require('request');
+let NodeCache = require('node-cache');
+
+let polarityCache = new NodeCache({
+    stdTTL: 60 * 60 // cache items live 1 hour
+});
 
 let Logger;
 let requestOptions = {};
 let requestWithDefaults;
+let defaults;
 
 const HYDRA_MEMBER = 'hydra:member';
 
 function getToken(options, callback) {
-    requestWithDefaults({
+    defaults({
         method: 'POST',
         uri: `${options.host}/auth/authenticate`,
         body: {
@@ -30,26 +36,33 @@ function getToken(options, callback) {
     });
 }
 
-function getAlertActions(token, options, callback) {
-    requestWithDefaults({
+function getAlertActions(options, callback) {
+    let actions = polarityCache.get('actions');
+
+    if (actions) {
+        Logger.trace('actions found in cache');
+        callback(null, actions);
+        return;
+    }
+
+    Logger.trace('actions NOT found in cache');
+
+    requestWithDefaults(options, {
         uri: `${options.host}/api/workflows/actions`,
         qs: {
             '$relationships': true,
             'isActive': true,
             'type': 'alerts'
         },
-        headers: {
-            Authorization: `Bearer ${token}`
-        },
         json: true
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
-            Logger.error(`error getting alert actions ${err || resp.statusCode} ${body}`);
-            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
+            Logger.error(`error getting alert actions ${err || resp.statusCode} ${JSON.stringify(body)}`);
+            callback({ error: err, statusCode: resp ? resp.statusCode : "", body: body }, null);
             return;
         }
 
-        let actions = body[HYDRA_MEMBER].map(action => {
+        actions = body[HYDRA_MEMBER].map(action => {
             let triggerStepId = action.triggerStep;
             let triggerStep = action.steps
                 .filter(step => step['@id'] === triggerStepId)
@@ -60,6 +73,8 @@ function getAlertActions(token, options, callback) {
                 name: action.name
             };
         });
+
+        polarityCache.set('actions', actions);
 
         callback(null, actions);
     });
@@ -85,17 +100,14 @@ function multiCasedBody(field, key) {
     return body
 }
 
-function getResult(options, token, key, callback) {
+function getResult(options, key, callback) {
     let body = multiCasedBody('source', key);
 
     Logger.trace('request body', body);
 
-    requestWithDefaults({
+    requestWithDefaults(options, {
         method: 'POST',
         uri: `${options.host}/api/query/incidents`,
-        headers: {
-            Authorization: `Bearer ${token}`
-        },
         body: body,
         json: true
     }, (err, resp, body) => {
@@ -111,13 +123,19 @@ function getResult(options, token, key, callback) {
     });
 }
 
-function getNumberOfAlerts(options, token, id, callback) {
-    requestWithDefaults({
+function getNumberOfAlerts(options, id, callback) {
+    let alerts = polarityCache.get('number-of-alerts-' + id);
+    if (alerts) {
+        Logger.trace('alerts found in cache');
+        callback(null, alerts);
+        return;
+    }
+
+    Logger.trace('alerts NOT found in cache');
+
+    requestWithDefaults(options, {
         method: 'GET',
         uri: `${options.host}${id}/alerts?&__selectFields=id`,
-        headers: {
-            Authorization: `Bearer ${token}`
-        },
         json: true
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
@@ -126,24 +144,32 @@ function getNumberOfAlerts(options, token, id, callback) {
             return;
         }
 
+        polarityCache.set('number-of-alerts-' + id, body[HYDRA_MEMBER].length);
+
         callback(null, body[HYDRA_MEMBER].length);
     });
 }
 
-function getIndicators(options, token, key, callback) {
+function getIndicators(options, key, callback) {
+    let indicators = polarityCache.get('indicators-' + key);
+    if (indicators) {
+        Logger.trace('indicators found in cache');
+        callback(null, indicators);
+        return;
+    }
+
+    Logger.trace('indicators NOT found in cache');
+
     let body = multiCasedBody('value', key);
 
-    requestWithDefaults({
+    requestWithDefaults(options, {
         method: 'POST',
         uri: `${options.host}/api/query/indicators`,
-        headers: {
-            Authorization: `Bearer ${token}`
-        },
         body: body,
         json: true
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
-            Logger.error(`error getting indicators`, { err: err, statusCode: resp.statusCode, body: body });
+            Logger.error(`error getting indicators`, { err: err, statusCode: resp ? resp.statusCode : 'unknown', body: body });
             callback({ error: err, statusCode: resp.statusCode, body: body }, null);
             return;
         }
@@ -156,12 +182,9 @@ function getIndicators(options, token, key, callback) {
             async.each(['alerts', 'assets', 'incidents', 'emails', 'events'], (type, done) => {
                 let id = indicator['@id'];
 
-                requestWithDefaults({
+                requestWithDefaults(options, {
                     method: 'GET',
                     uri: `${options.host}${id}/${type}?&__selectFields=id`,
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    },
                     body: body,
                     json: true
                 }, (err, resp, body) => {
@@ -186,120 +209,124 @@ function getIndicators(options, token, key, callback) {
                 done();
             });
         }, err => {
+            polarityCache.set('indicators-' + key, indicators);
+
             callback(err, indicators);
         });
 
     });
 }
 
-function doLookup(entities, options, lookupCallback) {
+function doLookup(entities, options, lookupCallback2) {
+    let lookupCallback = (err, data) => {
+        Logger.trace('final callback called with', { err: err, data: data });
+        lookupCallback2(err, data);
+    }
     Logger.trace('lookup options', { options: options });
 
     let results = [];
 
-    getToken(options, (err, token) => {
+    Logger.trace('1');
+
+    getAlertActions(options, (err, actions) => {
+        Logger.trace('1.1');
         if (err) {
             lookupCallback(err, null);
             return;
         }
 
-        getAlertActions(token, options, (err, actions) => {
-            if (err) {
-                lookupCallback(err, null);
-                return;
-            }
+        Logger.trace('2');
 
-            async.each(entities, (entity, doneEntities) => {
-                getIndicators(options, token, entity.value, (err, indicators) => {
+        async.each(entities, (entity, doneEntities) => {
+            getIndicators(options, entity.value, (err, indicators) => {
+                if (err) {
+                    lookupCallback(err);
+                    return;
+                }
+
+                Logger.trace('3');
+
+                getResult(options, entity.value, (err, result) => {
                     if (err) {
                         lookupCallback(err);
                         return;
                     }
 
-                    getResult(options, token, entity.value, (err, result) => {
-                        if (err) {
-                            lookupCallback(err);
-                            return;
-                        }
+                    Logger.trace('4');
 
-                        if (result[HYDRA_MEMBER].length === 0) {
+                    if (result[HYDRA_MEMBER].length === 0) {
+                        results.push({
+                            entity: entity,
+                            data: null
+                        });
+                        doneEntities();
+                        return;
+                    }
+
+                    Logger.trace('5');
+
+                    async.each(result[HYDRA_MEMBER], (result, doneResults) => {
+                        getNumberOfAlerts(options, result['@id'], (err, numberOfAlerts) => {
+                            if (err) {
+                                lookupCallback(err);
+                                return;
+                            }
+
+                            Logger.trace('6');
+
                             results.push({
                                 entity: entity,
-                                data: null
-                            });
-                            doneEntities();
-                            return;
-                        }
-
-                        async.each(result[HYDRA_MEMBER], (result, doneResults) => {
-                            getNumberOfAlerts(options, token, result['@id'], (err, numberOfAlerts) => {
-                                if (err) {
-                                    lookupCallback(err);
-                                    return;
-                                }
-
-                                results.push({
-                                    entity: entity,
-                                    data: {
-                                        summary: [
-                                            result.severity.itemValue,
-                                            result.status.itemValue,
-                                            result.phase.itemValue,
-                                            result.category.itemValue,
-                                            `Alerts: ${numberOfAlerts}`
-                                        ],
-                                        details: {
-                                            actions: actions,
-                                            result: result,
-                                            host: options.host,
-                                            numberOfAlerts: numberOfAlerts,
-                                            indicators: indicators
-                                        }
+                                data: {
+                                    summary: [
+                                        result.severity.itemValue,
+                                        result.status.itemValue,
+                                        result.phase.itemValue,
+                                        result.category.itemValue,
+                                        `Alerts: ${numberOfAlerts}`
+                                    ],
+                                    details: {
+                                        actions: actions,
+                                        result: result,
+                                        host: options.host,
+                                        numberOfAlerts: numberOfAlerts,
+                                        indicators: indicators
                                     }
-                                });
-                                doneResults();
+                                }
                             });
-                        }, err => {
-                            if (err) {
-                                doneEntities(err);
-                                Logger.error('circular error?', err);
-                            }
-                            doneEntities();
+                            doneResults();
                         });
+                    }, err => {
+                        if (err) {
+                            doneEntities(err);
+                            Logger.error('circular error?', err);
+                        }
+                        doneEntities();
                     });
                 });
-            }, err => {
-                lookupCallback(err, results);
             });
+        }, err => {
+            Logger.trace('sending results', { results: results });
+            lookupCallback(err, results);
         });
     });
+
 }
 
 function onMessage(payload, options, callback) {
-    getToken(options, (err, token) => {
-        if (err) {
-            callback({ error: err });
+    requestWithDefaults(options, {
+        method: 'POST',
+        uri: payload.action.invoke,
+        body: {
+            records: [payload.alert],
+        },
+        json: true,
+    }, (err, resp) => {
+        if (err || resp.statusCode !== 200) {
+            callback({ error: err, statusCode: resp.statusCode });
             return;
         }
 
-        requestWithDefaults({
-            method: 'POST',
-            uri: payload.action.invoke,
-            body: {
-                records: [payload.alert],
-            },
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
-            json: true,
-        }, (err, resp) => {
-            if (err || resp.statusCode !== 200) {
-                callback({ error: err, statusCode: resp.statusCode });
-                return;
-            }
-
-            callback(null, {});
-        });
+        callback(null, {});
     });
 }
 
@@ -330,7 +357,38 @@ function startup(logger) {
         requestOptions.rejectUnauthorized = config.request.rejectUnauthorized;
     }
 
-    requestWithDefaults = request.defaults(requestOptions);
+    let tokens = {};
+
+    defaults = request.defaults(requestOptions);
+    requestWithDefaults = (options, requestOptions, callback) => {
+        if (!requestOptions.headers) {
+            requestOptions.headers = {};
+        }
+
+        requestOptions.headers.Authorization = tokens[options.username + options.password];
+        defaults(requestOptions, (err, resp, body) => {
+            if (err) {
+                callback(err, null);
+                return;
+            }
+
+            if (resp.statusCode == 401) {
+                getToken(options, (err, token) => {
+                    if (err) {
+                        callback(err);
+                        return;
+                    }
+
+                    tokens[options.username + options.password] = token
+                    requestOptions.headers.Authorization = 'Bearer ' + token;
+                    defaults(requestOptions, callback);
+                });
+                return;
+            }
+
+            callback(null, resp, body);
+        });
+    }
 }
 
 function validateStringOption(errors, options, optionName, errMessage) {
