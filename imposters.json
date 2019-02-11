@@ -63,7 +63,10 @@
                     "predicates": [
                         {
                             "equals": {
-                                "path": "/api/query/alerts"
+                                "path": "/api/query/alerts",
+                                "headers": {
+                                    "Authorization": "Bearer 12345"
+                                }
                             }
                         },
                         {
@@ -86,7 +89,7 @@
                             "is": {
                                 "body": {
                                     "@context": "/api/3/contexts/Alert",
-                                    "@id": "/api/query/alerts",
+                                    "@id": "/api/specific/entity",
                                     "@type": "hydra:PagedCollection",
                                     "hydra:totalItems": 1,
                                     "hydra:itemsPerPage": 30,
@@ -233,10 +236,151 @@
                     ]
                 },
                 {
+                    "predicates": [
+                        {
+                            "equals": {
+                                "path": "/api/query/indicators",
+                                "headers": {
+                                    "Authorization": "Bearer 12345"
+                                }
+                            }
+                        }
+                    ],
                     "responses": [
                         {
                             "is": {
-                                "statusCode": 500
+                                "body": {
+                                    "hydra:member": [
+                                        {
+                                            "@id": "/api/3/alerts/26b85c5d-74fd-456a-9d67-4e1cd7fd3dc1"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "predicates": [
+                        {
+                            "equals": {
+                                "path": "/api/workflows/actions",
+                                "headers": {
+                                    "Authorization": "Bearer 12345"
+                                }
+                            }
+                        }
+                    ],
+                    "responses": [
+                        {
+                            "is": {
+                                "body": {
+                                    "hydra:member": [
+                                        {
+                                            "@id": "/api/3/alerts/26b85c5d-74fd-456a-9d67-4e1cd7fd3dc1",
+                                            "steps": [
+                                                {
+                                                    "arguments": {}
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "predicates": [
+                        {
+                            "equals": {
+                                "path": "/api/query/incidents",
+                                "headers": {
+                                    "Authorization": "Bearer 12345"
+                                }
+                            }
+                        }
+                    ],
+                    "responses": [
+                        {
+                            "is": {
+                                "body": {
+                                    "hydra:member": [
+                                        {
+                                            "@id": "/api/3/alerts/26b85c5d-74fd-456a-9d67-4e1cd7fd3dc1",
+                                            "severity": {
+                                                "itemValue": 1
+                                            },
+                                            "status": {
+                                                "itemValue": 1
+                                            },
+                                            "phase": {
+                                                "itemValue": 1
+                                            },
+                                            "category": {
+                                                "itemValue": 1
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "predicates": [
+                        {
+                            "or": [
+                                {
+                                    "equals": {
+                                        "path": "/api/3/alerts/26b85c5d-74fd-456a-9d67-4e1cd7fd3dc1/alerts"
+                                    }
+                                },
+                                {
+                                    "equals": {
+                                        "path": "/api/3/alerts/26b85c5d-74fd-456a-9d67-4e1cd7fd3dc1/assets"
+                                    }
+                                },
+                                {
+                                    "equals": {
+                                        "path": "/api/3/alerts/26b85c5d-74fd-456a-9d67-4e1cd7fd3dc1/incidents"
+                                    }
+                                },
+                                {
+                                    "equals": {
+                                        "path": "/api/3/alerts/26b85c5d-74fd-456a-9d67-4e1cd7fd3dc1/emails"
+                                    }
+                                },
+                                {
+                                    "equals": {
+                                        "path": "/api/3/alerts/26b85c5d-74fd-456a-9d67-4e1cd7fd3dc1/events"
+                                    }
+                                }
+                            ],
+                            "deepEquals": {
+                                "headers": {
+                                    "Authorization": "Bearer 12345"
+                                }
+                            }
+                        }
+                    ],
+                    "responses": [
+                        {
+                            "is": {
+                                "body": {
+                                    "hydra:member": [
+                                        {}
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "responses": [
+                        {
+                            "is": {
+                                "statusCode": 401
                             }
                         }
                     ]

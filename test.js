@@ -11,6 +11,8 @@ describe('CyberSponse integration', () => {
     });
 
     it('should succed when given a correct username/password', done => {
+        integration.polarityCache.flushAll();
+        integration.tokens = {};
         integration.doLookup([
             {
                 isIPv4: true,
@@ -27,6 +29,8 @@ describe('CyberSponse integration', () => {
     });
 
     it('should fail when given an incorrect username/password', done => {
+        integration.polarityCache.flushAll();
+        integration.tokens = {};
         integration.doLookup([
             {
                 isIPv4: true,
@@ -37,12 +41,14 @@ describe('CyberSponse integration', () => {
                 password: 'password1'
             }, (err, resp) => {
                 assert.isOk(err);
-                assert.equal(400, err.statusCode);
+                assert.equal(400, err.error.statusCode);
                 done();
             });
     });
 
     it('should look up entities', done => {
+        integration.polarityCache.flushAll();
+        integration.tokens = {};
         integration.doLookup([
             {
                 isIPv4: true,
@@ -53,7 +59,7 @@ describe('CyberSponse integration', () => {
                 password: 'password'
             }, (err, resp) => {
                 assert.isNotOk(err);
-                assert.equal('10.10.10.10', resp[0].source);
+                assert.equal('10.10.10.10', resp[0].entity.value);
                 done();
             });
     });

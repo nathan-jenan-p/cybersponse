@@ -49,12 +49,15 @@ polarity.export = PolarityComponent.extend({
             let details = this.get('block.data.details');
             let detail = details.result;
             let items = [];
+
             addItem(items, 'Description', detail.description, true);
             addItem(items, 'Impact Assessments', detail.impactassessments, true);
-            addItem(items, 'Phase', detail.phase.itemValue);
-            addItem(items, 'Category', detail.category.itemValue);
-            addItem(items, 'Severity', detail.severity.itemValue);
-            addItem(items, 'Indicator Status', detail.status.itemValue);
+
+            addItem(items, 'Phase', detail.phase ? detail.phase.itemValue : null);
+            addItem(items, 'Category', detail.category ? detail.category.itemValue : null);
+            addItem(items, 'Severity', detail.severity ? detail.severity.itemValue : null);
+            addItem(items, 'Indicator Status', detail.status ? detail.status.itemValue : null);
+
             addItem(items, 'Number of Alerts', details.numberOfAlerts);
             if (detail.incidentLead && detail.incidentLead.firstname) {
                 items.push({ key: 'Incident Lead', value: detail.incidentLead.firstname + ' ' + detail.incidentLead.lastname });

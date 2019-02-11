@@ -11,6 +11,7 @@ let Logger;
 let requestOptions = {};
 let requestWithDefaults;
 let defaults;
+let tokens = {};
 
 const HYDRA_MEMBER = 'hydra:member';
 
@@ -112,8 +113,8 @@ function getResult(options, key, callback) {
         json: true
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
-            Logger.error(`error getting entities`, { err: err, statusCode: resp.statusCode, body: body });
-            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
+            Logger.error(`error getting entities`, { err: err, statusCode: resp ? resp.statusCode : 'unknown', body: body });
+            callback({ error: err, statusCode: resp ? resp.statusCode : 'unknown', body: body }, null);
             return;
         }
 
@@ -139,8 +140,8 @@ function getNumberOfAlerts(options, id, callback) {
         json: true
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
-            Logger.error(`error getting number of alerts`, { err: err, statusCode: resp.statusCode, body: body });
-            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
+            Logger.error(`error getting number of alerts`, { err: err, statusCode: resp ? resp.statusCode : 'unknown', body: body });
+            callback({ error: err, statusCode: resp ? resp.statusCode : 'unknown', body: body }, null);
             return;
         }
 
@@ -170,7 +171,7 @@ function getIndicators(options, key, callback) {
     }, (err, resp, body) => {
         if (err || resp.statusCode !== 200) {
             Logger.error(`error getting indicators`, { err: err, statusCode: resp ? resp.statusCode : 'unknown', body: body });
-            callback({ error: err, statusCode: resp.statusCode, body: body }, null);
+            callback({ error: err, statusCode: resp ? resp.statusCode : 'unknown', body: body }, null);
             return;
         }
 
@@ -189,8 +190,8 @@ function getIndicators(options, key, callback) {
                     json: true
                 }, (err, resp, body) => {
                     if (err || resp.statusCode !== 200) {
-                        Logger.error(`error getting ${type}`, { err: err, statusCode: resp.statusCode, body: body });
-                        done({ error: err, statusCode: resp.statusCode, body: body });
+                        Logger.error(`error getting ${type}`, { err: err, statusCode: resp ? resp.statusCode : 'unknown', body: body });
+                        done({ error: err, statusCode: resp ? resp.statusCode : 'unknown', body: body });
                         return;
                     }
 
@@ -213,103 +214,122 @@ function getIndicators(options, key, callback) {
 
             callback(err, indicators);
         });
-
     });
 }
 
-function doLookup(entities, options, lookupCallback2) {
-    let lookupCallback = (err, data) => {
-        Logger.trace('final callback called with', { err: err, data: data });
-        lookupCallback2(err, data);
-    }
+function doLookup(entities, options, lookupCallback) {
     Logger.trace('lookup options', { options: options });
 
     let results = [];
 
-    Logger.trace('1');
+    async.parallel({
+        actions: callback => getAlertActions(options, callback),
+        indicatorsMap: callback => {
+            let indicatorsMap = {};
+            async.each(entities, (entity, done) => {
+                getIndicators(options, entity.value, (err, indicators) => {
+                    if (err) {
+                        callback(err);
+                        return;
+                    }
 
-    getAlertActions(options, (err, actions) => {
-        Logger.trace('1.1');
-        if (err) {
-            lookupCallback(err, null);
-            return;
-        }
-
-        Logger.trace('2');
-
-        async.each(entities, (entity, doneEntities) => {
-            getIndicators(options, entity.value, (err, indicators) => {
-                if (err) {
-                    lookupCallback(err);
-                    return;
-                }
-
-                Logger.trace('3');
-
+                    indicatorsMap[entity.value] = indicators;
+                    done();
+                });
+            }, err => {
+                callback(err, indicatorsMap);
+            });
+        },
+        resultsAndNumberOfAlertsMap: callback => {
+            let resultMap = {};
+            let alertsMap = {};
+            async.each(entities, (entity, done) => {
                 getResult(options, entity.value, (err, result) => {
                     if (err) {
-                        lookupCallback(err);
+                        done(err);
                         return;
                     }
 
-                    Logger.trace('4');
-
-                    if (result[HYDRA_MEMBER].length === 0) {
-                        results.push({
-                            entity: entity,
-                            data: null
-                        });
-                        doneEntities();
+                    if (result[HYDRA_MEMBER] && result[HYDRA_MEMBER].length === 0) {
+                        done();
                         return;
                     }
 
-                    Logger.trace('5');
+                    resultMap[entity.value] = result;
 
                     async.each(result[HYDRA_MEMBER], (result, doneResults) => {
                         getNumberOfAlerts(options, result['@id'], (err, numberOfAlerts) => {
                             if (err) {
-                                lookupCallback(err);
+                                doneResults(err);
                                 return;
                             }
 
-                            Logger.trace('6');
+                            if (!alertsMap[entity.value]) {
+                                alertsMap[entity.value] = 0;
+                            }
 
-                            results.push({
-                                entity: entity,
-                                data: {
-                                    summary: [
-                                        result.severity.itemValue,
-                                        result.status.itemValue,
-                                        result.phase.itemValue,
-                                        result.category.itemValue,
-                                        `Alerts: ${numberOfAlerts}`
-                                    ],
-                                    details: {
-                                        actions: actions,
-                                        result: result,
-                                        host: options.host,
-                                        numberOfAlerts: numberOfAlerts,
-                                        indicators: indicators
-                                    }
-                                }
-                            });
+                            alertsMap[entity.value] += numberOfAlerts;
                             doneResults();
                         });
-                    }, err => {
-                        if (err) {
-                            doneEntities(err);
-                            Logger.error('circular error?', err);
-                        }
-                        doneEntities();
-                    });
+                    }, done);
                 });
+            }, err => {
+                callback(err, { result: resultMap, numberOfAlerts: alertsMap });
             });
-        }, err => {
-            Logger.trace('sending results', { results: results });
-            lookupCallback(err, results);
-        });
-    });
+        },
+    }, (err, resultsMap) => {
+        if (err) {
+            Logger.error('error during lookup', err);
+            lookupCallback(err);
+            return;
+        }
 
+        entities.forEach(entity => {
+            Logger.trace('results map', resultsMap);
+
+            let singleResult = resultsMap.resultsAndNumberOfAlertsMap.result[entity.value];
+
+            if (!singleResult || !singleResult[HYDRA_MEMBER] || singleResult[HYDRA_MEMBER].length === 0) {
+                Logger.trace('skipping entity because no results in map', entity.value);
+                results.push({
+                    entity: entity,
+                    data: null
+                });
+                return;
+            }
+
+            let members = singleResult[HYDRA_MEMBER];
+
+            members.forEach(member => {
+                let singleResult = {
+                    entity: entity,
+                    data: {
+                        summary: [
+                            member.severity ? member.severity.itemValue : null,
+                            member.status ? member.status.itemValue : null,
+                            member.phase ? member.phase.itemValue : null,
+                            member.category ? member.category.itemValue : null,
+                            `Alerts: ${resultsMap.resultsAndNumberOfAlertsMap.numberOfAlerts[entity.value]}`
+                        ]
+                            .filter(identity => identity),
+                        details: {
+                            actions: resultsMap.actions,
+                            result: member,
+                            host: options.host,
+                            numberOfAlerts: resultsMap.resultsAndNumberOfAlertsMap.numberOfAlerts[entity.value],
+                            indicators: resultsMap.indicatorsMap[entity.value]
+                        }
+                    }
+                };
+
+                results.push(singleResult);
+            });
+        });
+
+        Logger.trace('sending results to client', results);
+
+        lookupCallback(null, results);
+    });
 }
 
 function onMessage(payload, options, callback) {
@@ -357,15 +377,15 @@ function startup(logger) {
         requestOptions.rejectUnauthorized = config.request.rejectUnauthorized;
     }
 
-    let tokens = {};
-
     defaults = request.defaults(requestOptions);
     requestWithDefaults = (options, requestOptions, callback) => {
         if (!requestOptions.headers) {
             requestOptions.headers = {};
         }
 
-        requestOptions.headers.Authorization = tokens[options.username + options.password];
+        let token = tokens[options.username + options.password];
+
+        requestOptions.headers.Authorization = token;
         defaults(requestOptions, (err, resp, body) => {
             if (err) {
                 callback(err, null);
@@ -415,5 +435,7 @@ module.exports = {
     doLookup: doLookup,
     onMessage: onMessage,
     startup: startup,
-    validateOptions: validateOptions
+    validateOptions: validateOptions,
+    polarityCache: polarityCache,
+    tokens: tokens
 };
