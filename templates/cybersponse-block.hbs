@@ -45,19 +45,18 @@
         <h1 class="p-title">
             Actions
         </h1>
-        {{#each details.actions as |action|}}
+
         <div>
-            <span>
-                <button {{action "invokePlaybook" action displayResult.alert}} class="btn btn-primary">
-                    {{action.name}}
-                </button>
-                {{#if action.success}}
-                <span class="success">Success!</span>
-                {{/if}} {{#if action.error}}
-                <span class="error">Error while processing playbook, check logs</span>
-                {{/if}}
-            </span>
+            <div>
+                <select size=3 onchange={{action 'onSelectPlaybook' value="target.value" }}>
+                    {{#each details.actions as |action|}}
+                    <option value="{{action.invoke}}">{{action.name}}</option>
+                    {{/each}}
+                </select>
+                <button {{action "invokePlaybook" invoke displayResult.alert }} class="btn material btn-primary">Run</button>
+                <div>{{status}}</div>
+            </div>
         </div>
-        <br /> {{/each}}
+        <br />
     </div>
 </div>

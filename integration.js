@@ -53,7 +53,7 @@ function getAlertActions(options, callback) {
         qs: {
             '$relationships': true,
             'isActive': true,
-            'type': 'alerts'
+            'type': 'incidents'
         },
         json: true
     }, (err, resp, body) => {
@@ -64,13 +64,15 @@ function getAlertActions(options, callback) {
         }
 
         actions = body[HYDRA_MEMBER].map(action => {
+            let split = action['@id'].split('/');
+            let id = split[split.length - 1];
             let triggerStepId = action.triggerStep;
             let triggerStep = action.steps
                 .filter(step => step['@id'] === triggerStepId)
                 .pop(); // should be only 1 match
 
             return {
-                invoke: `${options.host}/api/triggers/1/action/${triggerStep.arguments.route}`,
+                invoke: `${id}|${options.host}/api/triggers/1/action/${triggerStep.arguments.route}`,
                 name: action.name
             };
         });
@@ -333,18 +335,28 @@ function doLookup(entities, options, lookupCallback) {
 }
 
 function onMessage(payload, options, callback) {
-    requestWithDefaults(options, {
+    Logger.trace('beginning playbook invocation of ' + payload.invoke);
+
+    let ro = {
         method: 'POST',
-        uri: payload.action.invoke,
+        uri: payload.invoke,
         body: {
-            records: [payload.alert],
+            // {"singleRecordExecution":false,"__resource":"incidents","__uuid":"57dd661e-2e11-497e-ac2d-71a37aebb043","records":["/api/3/incidents/eabd5e46-2fbd-4f0e-a4c1-af98a1cad5bd"]}
+            singleRecordExecution: false,
+            '__resource': 'incidents',
+            '__uuid': payload.id,
+            records: [payload.alert['@id']] // incident type
         },
         json: true,
-    }, (err, resp) => {
+    };
+    requestWithDefaults(options, ro, (err, resp) => {
         if (err || resp.statusCode !== 200) {
-            callback({ error: err, statusCode: resp.statusCode });
+            Logger.error({err: err, code: resp ? resp.statusCode : 'unknown'});
+            callback({ error: err, statusCode: resp ? resp.statusCode : 'unknown', ro: ro});
             return;
         }
+
+        Logger.trace('playbook invocation completed successfully');
 
         callback(null, {});
     });

@@ -85,31 +85,36 @@ polarity.export = PolarityComponent.extend({
     }),
     actions: {
         invokePlaybook: function (action, alert) {
-            this.sendIntegrationMessage({ action: action, alert: alert })
-                .then(() => {
-                    let details = this.get('block.data.details');
-                    let match = details.actions
-                        .filter(candidate => candidate.name === action.name)
-                        .pop();
+            this.set('status', 'running playbook');
+            this.notifyPropertyChange('status');
 
-                    match.success = true;
+            try {
+                console.log('preparing integration message');
+                console.log('action: ' + action);
+                console.log('alert: ' + alert);
 
-                    this.set('block.data.details', details);
-                    this.notifyPropertyChange('block.data.details');
-                })
-                .catch(err => {
-                    console.error(err);
+                let split = action.split('|');
+                let id = split[0];
+                let invoke = split[1];
 
-                    let details = this.get('block.data.details');
-                    let match = details.actions
-                        .filter(candidate => candidate.name === action.name)
-                        .pop();
-
-                    match.error = true;
-
-                    this.set('block.data.details', details);
-                    this.notifyPropertyChange('block.data.details');
-                });
-        }
+                this.sendIntegrationMessage({ invoke: invoke, id: id, alert: alert })
+                    .then(() => {
+                        console.log('playbook invocation done');
+                        this.set('status', 'success');
+                        this.notifyPropertyChange('status');
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        this.set('status', err);
+                        this.notifyPropertyChange('status');
+                    });
+            } catch (e) {
+                console.error(e);
+            }
+        },
+        onSelectPlaybook: function (_invoke) {
+            this.set('invoke', _invoke);
+        },
+        invoke: {}
     }
 });
